@@ -1,0 +1,137 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+package main;
+
+if (@ARGV) {
+	my $sh = MyShell->new();
+	if ($ARGV[0] eq '-i') {
+		shift @ARGV;
+		$sh->cmd(join(' ', @ARGV)) if @ARGV;	
+		$sh->cmdloop;
+	}
+	elsif ($ARGV[0] =~ /^--?h(?:elp)?/) {
+		$sh->cmd("help");
+		exit(0);
+	}
+	else {
+		$sh->cmd(join(' ',@ARGV));
+		exit(0);
+	}
+}
+
+package MyShell;
+use base qw(Term::Shell);
+use lib './lib';
+use TimeTo::Table;
+
+sub init {
+	my $self = shift;
+	$self->{SHELL}->{home} = $ENV{HOME};
+	$self->{SHELL}->{storefile} = $self->{SHELL}->{home}."/.switch.db";
+	$self->{SHELL}->{tt} = TimeTo::Table->new();
+	$self->{SHELL}->{tt}->connect( "dbi:SQLite:".$self->{SHELL}->{storefile}, "Timespan" );
+}
+
+sub prompt_str { return "time to> "; }
+
+# Actions here
+sub run_switch {
+	my ($self, @args) = @_;
+	# timeto switch [to] <proj> [[at] <time>]
+	my $argstr = join(" ", @args);
+	$argstr =~ /^(?:to )?([^ ]+)(?: (?:at )?(\d+-\d+-\d+T\d+:\d+:\d+))?$/ or print "What?\n";
+	my $ins = {};
+	if ($1) {
+		$ins->{project} = $1;
+		my $time = $2 || undef;
+		$self->{SHELL}->{tt}->insert($ins, $time);
+	}
+	$self->cmd("view");
+}
+#sub comp_switch { 
+#	my $self = shift;
+#	my ($word, $typed, $start) = @_;
+#	#print "\nword: $word\ntyped: $typed\nstart: $start\n";
+#	my @possibles;
+#	for my $completion ('cat', 'category', 'time', 'proj', 'project') {
+#		push @possibles, $completion if "switch $completion" =~ /^$typed/;
+#	}
+#	return @possibles;
+#}
+sub smry_switch { return "Switches task or task information."; }
+sub help_switch { 
+	<<END;
+Switches task or task information.
+Yeah, it does.
+END
+}
+
+sub smry_view { return "Displays reports."; }
+sub help_view {
+	<<END;
+Displays reports.
+You view them.
+END
+}
+sub run_view {
+	my ($self, @args) = @_;
+	# timeto view [today|screen|prompt]
+	my $argstr = join(" ", @args);
+	my $view = "most recent";
+	if ($argstr =~ /^(.+)$/) {
+		$view = $1;
+	}
+	my $format = '%H:%M';
+	if ($view =~ /^(?:to)?day$/i) {
+		my @today = $self->{SHELL}->{tt}->today();
+		for my $t (@today) {
+			my $start = _parse_into_dt( $t->{start}, 'local' );
+			my $stop = undef;
+			my $dur = undef;
+			if ($t->{stop}) {
+				$stop = _parse_into_dt( $t->{stop}, 'local' );
+				$dur = $stop->subtract_datetime( $start );	
+			}
+			my $line = $t->{project} . "\t" . $start->strftime($format) . "\t";
+			$line .= $stop->strftime($format) if $stop;
+			$line .= "\t(" . sprintf("%.2f", $dur->hours+($dur->minutes/60)) . " hrs)" if $dur;
+			$line .= "\n";
+			print $line;
+		}
+	}
+	elsif ($view =~ /^screen$/) {
+		my $mr = $self->{SHELL}->{tt}->most_recent;
+		my $start = _parse_into_dt( $mr->{start}, 'local' );
+		print $mr->{project} . " " . $start->strftime($format) . "\n";
+	}
+	elsif ($view =~ /^prompt$/) {
+		my $mr = $self->{SHELL}->{tt}->most_recent;
+		my $start = _parse_into_dt( $mr->{start}, 'local' );
+		print $mr->{project} . " " . $start->strftime($format) . " ";
+	}
+	elsif ($view =~ /^(?:most )?recent$/) {
+		my $mr = $self->{SHELL}->{tt}->most_recent;
+		my $start = _parse_into_dt( $mr->{start}, 'local' );
+		print $mr->{project} . " " . $start->strftime($format) . "\n";
+	}
+}
+
+
+sub _parse_into_dt {
+	my ($dtstr, $locale) = @_;
+	defined($dtstr) or return undef;
+	$dtstr =~ /^(\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)$/ or return undef;
+	my $dt = DateTime->new(	year => $1,
+							month => $2,
+							day => $3,
+							hour => $4,
+							minute => $5,
+							second => $6,
+							time_zone => "UTC",
+						);
+	$dt->set_time_zone( $locale ) if $locale;
+	return $dt;
+}
