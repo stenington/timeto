@@ -105,7 +105,7 @@ sub run_view {
 	elsif ($view =~ /^screen$/) {
 		my $mr = $self->{SHELL}->{tt}->most_recent;
 		my $start = _parse_into_dt( $mr->{start}, 'local' );
-		print $mr->{project} . " " . $start->strftime($format) . "\n";
+		print "\033_" . $mr->{project} . " " . $start->strftime($format) . "\033\\";
 	}
 	elsif ($view =~ /^prompt$/) {
 		my $mr = $self->{SHELL}->{tt}->most_recent;
