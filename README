@@ -2,3 +2,15 @@ timeto-
 write the README. Ha!
 
 If you're here, you're on your own for now.
+
+TODO
+====
+Checkout-and-run problems:
+ * whines about missing cpan modules
+ * whines about missing sqlite db file
+  * DBIx::Class::Schema::resultset(): Can't find source for Timespan at lib/TimeTo/Table.pm line 26
+ * whines that db is empty if first call is not switch
+  * Use of uninitialized value in concatenation (.) or string at ./timeto line 118.
+    Can't call method "strftime" on an undefined value at ./timeto line 118.
+ * Then it works, at least from timeto dir.
+
