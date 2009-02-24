@@ -130,6 +130,18 @@ sub today {
 }
 
 
+sub dump {
+	my ($self) = @_;
+	my @store_entries = $self->{STORAGE}->all();
+	my @ret_entries;
+	for my $entry (@store_entries) {
+		my %data = $entry->get_columns();
+		push @ret_entries, \%data;
+	}
+	return @ret_entries;
+}
+
+
 sub _get_prev {
 	my $self = shift;
 	my $start = shift;

@@ -86,29 +86,7 @@ sub run_view {
 	}
 	my $format = '%H:%M';
 	if ($view =~ /^(?:to)?day$/i) {
-		my @today = $self->{SHELL}->{tt}->today();
-		my $totaldur = 0;
-		for my $t (@today) {
-			my $start = _parse_into_dt( $t->{start}, 'local' );
-			my $stop = undef;
-			my $dur = undef;
-			if ($t->{stop}) {
-				$stop = _parse_into_dt( $t->{stop}, 'local' );
-				$dur = $stop->subtract_datetime( $start );	
-			}
-			else {
-				my $now = DateTime->now()->set_time_zone( 'local' );
-				$dur = $now->subtract_datetime( $start );
-			}
-			my $durfrac = sprintf("%.2f", $dur->hours+($dur->minutes/60));
-			$totaldur += $durfrac;
-			my $line = $t->{project} . "\t" . $start->strftime($format) . "\t";
-			$line .= $stop->strftime($format) if $stop;
-			$line .= "\t(" .  $durfrac . " hrs)" if $dur;
-			$line .= "\n";
-			print $line;
-		}
-		print "\t\t\t($totaldur hrs)\n";
+		$self->_run_view_today();
 	}
 	elsif ($view =~ /^screen$/) {
 		my $mr = $self->{SHELL}->{tt}->most_recent;
@@ -127,6 +105,49 @@ sub run_view {
 	}
 }
 
+
+sub _run_view_today {
+	my ($self) = @_;
+
+	my $totaldur = 0;
+	my %projects;
+	my @today = $self->{SHELL}->{tt}->today();
+
+	for my $t (@today) {
+		my $start = _parse_into_dt( $t->{start}, 'local' );
+		my $stop = undef;
+		my $dur = undef;
+		if ($t->{stop}) {
+			$stop = _parse_into_dt( $t->{stop}, 'local' );
+			$dur = $stop->subtract_datetime( $start );	
+		}
+		else {
+			my $now = DateTime->now()->set_time_zone( 'local' );
+			$dur = $now->subtract_datetime( $start );
+		}
+		my $durfrac = sprintf("%.2f", $dur->hours+($dur->minutes/60));
+		$totaldur += $durfrac;
+		$projects{$t->{project}} += $durfrac;
+	}
+
+	for my $p (sort keys %projects) {
+		print $p . "\t" . "(" . $projects{$p} . ")\n";
+	}
+	print "\t($totaldur hrs)\n";
+}
+
+
+sub smry_dump { }
+sub help_dump { }
+sub run_dump { 
+	my ($self, @args) = @_;
+	for my $entry_ref ($self->{SHELL}->{tt}->dump()) { 
+		for my $k (sort keys %$entry_ref) {
+			print $k . ": " . $entry_ref->{$k} . "\t" if $entry_ref->{$k};
+		}
+	print "\n";
+	}
+}
 
 sub _parse_into_dt {
 	my ($dtstr, $locale) = @_;
