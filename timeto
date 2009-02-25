@@ -26,6 +26,8 @@ package MyShell;
 use base qw(Term::Shell);
 use lib './lib';
 use TimeTo::Table;
+use Data::Dumper;
+
 
 sub init {
 	my $self = shift;
@@ -85,24 +87,47 @@ sub run_view {
 		$view = $1;
 	}
 	my $format = '%H:%M';
+
 	if ($view =~ /^(?:to)?day$/i) {
 		$self->_run_view_today();
 	}
+	elsif ($view =~ /^proj(?:ect)?\s+(.*)$/) {
+		$self->_run_view_project($1);
+	}
 	elsif ($view =~ /^screen$/) {
 		my $mr = $self->{SHELL}->{tt}->most_recent;
-		my $start = _parse_into_dt( $mr->{start}, 'local' );
+		my $start = _parseIntoDT( $mr->{start}, 'local' );
 		print "\033_" . $mr->{project} . " " . $start->strftime($format) . "\033\\";
 	}
 	elsif ($view =~ /^prompt$/) {
 		my $mr = $self->{SHELL}->{tt}->most_recent;
-		my $start = _parse_into_dt( $mr->{start}, 'local' );
+		my $start = _parseIntoDT( $mr->{start}, 'local' );
 		print $mr->{project} . " " . $start->strftime($format) . " ";
 	}
 	elsif ($view =~ /^(?:most )?recent$/) {
 		my $mr = $self->{SHELL}->{tt}->most_recent;
-		my $start = _parse_into_dt( $mr->{start}, 'local' );
+		my $start = _parseIntoDT( $mr->{start}, 'local' );
 		print $mr->{project} . " " . $start->strftime($format) . "\n";
 	}
+}
+
+
+sub _run_view_project {
+	my ($self, $argstr) = @_;
+	$argstr =~ s/(?:^\s+|\s+$)//;
+	my @entries = $self->{SHELL}->{tt}->project( $argstr );
+
+	my $total = 0;
+
+	print "$argstr:\n";
+	for my $entry (@entries) {
+		my $dur = _getEntryDuration( $entry );
+		$total += $dur;
+		print "\t" . $entry->{start};
+		print "\t" . $entry->{stop} if defined($entry->{stop});
+		print "\n";
+	}
+	print "Total: $total\n";
 }
 
 
@@ -114,18 +139,7 @@ sub _run_view_today {
 	my @today = $self->{SHELL}->{tt}->today();
 
 	for my $t (@today) {
-		my $start = _parse_into_dt( $t->{start}, 'local' );
-		my $stop = undef;
-		my $dur = undef;
-		if ($t->{stop}) {
-			$stop = _parse_into_dt( $t->{stop}, 'local' );
-			$dur = $stop->subtract_datetime( $start );	
-		}
-		else {
-			my $now = DateTime->now()->set_time_zone( 'local' );
-			$dur = $now->subtract_datetime( $start );
-		}
-		my $durfrac = sprintf("%.2f", $dur->hours+($dur->minutes/60));
+		my $durfrac = _getEntryDuration( $t ); 
 		$totaldur += $durfrac;
 		$projects{$t->{project}} += $durfrac;
 	}
@@ -149,7 +163,7 @@ sub run_dump {
 	}
 }
 
-sub _parse_into_dt {
+sub _parseIntoDT {
 	my ($dtstr, $locale) = @_;
 	defined($dtstr) or return undef;
 	$dtstr =~ /^(\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)$/ or return undef;
@@ -163,4 +177,27 @@ sub _parse_into_dt {
 						);
 	$dt->set_time_zone( $locale ) if $locale;
 	return $dt;
+}
+
+sub _getEntryDuration {
+	my ($entry) = @_;
+	my $start = _parseIntoDT( $entry->{start}, 'local' );
+	my $stop = undef;
+	my $dur = undef;
+	if ($entry->{stop}) {
+		$stop = _parseIntoDT( $entry->{stop}, 'local' );
+		$dur = $stop->subtract_datetime( $start );	
+	}
+	else {
+		my $now = DateTime->now()->set_time_zone( 'local' );
+		$dur = $now->subtract_datetime( $start );
+	}
+	return sprintf("%.2f", $dur->hours+($dur->minutes/60));
+}
+
+sub _makeHumanReadable {
+	my ($t) = @_;	
+	my $format = '%H:%M';
+	my $dt = _parseIntoDT( $t );
+	return $dt->strftime($format);
 }

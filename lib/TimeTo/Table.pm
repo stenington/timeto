@@ -129,6 +129,15 @@ sub today {
 	return @ret;
 }
 
+sub project {
+	my ($self, $project) = @_;
+	my $entries = $self->{STORAGE}->search(
+		{ project => $project },
+		{ order_by => 'start ASC' }
+	);
+	return _hashify($entries);
+}
+
 
 sub dump {
 	my ($self) = @_;
@@ -139,6 +148,17 @@ sub dump {
 		push @ret_entries, \%data;
 	}
 	return @ret_entries;
+}
+
+
+sub _hashify {
+	my ($entries) = @_;
+	my @ret;
+	while (my $entry = $entries->next()) {
+		my %data = $entry->get_columns();
+		push @ret, \%data;
+	}
+	return @ret;
 }
 
 
