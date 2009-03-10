@@ -110,6 +110,17 @@ sub most_recent {
 
 sub today {
 	my ($self) = @_;
+	#my ($self,$localDate) = @_;
+	#die "Unable to parse date\n" unless $localDate =~ /^(\d{4}-\d{2}-\d{2}$/;
+	#my ($yr, $month, $day) = ($1, $2, $3);
+	#my $day = DateTime->new( 	year => $yr ,
+	#							month => $month, 
+	#							day => $day,
+	#							hour => 0,
+	#							minute => 0,
+	#							second => 0
+	#						);
+	#$day->set_time_zone( 'local' );
 	my $now = DateTime->now();
 	$now->set_time_zone( 'local' );
 	$now->set( 	hour => 0,

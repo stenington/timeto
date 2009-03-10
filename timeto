@@ -91,6 +91,9 @@ sub run_view {
 	if ($view =~ /^(?:to)?day$/i) {
 		$self->_run_view_today();
 	}
+	#elsif ($view =~ /^yesterday$/i) {
+	#	$self->_run_view_yesterday();
+	#}
 	elsif ($view =~ /^proj(?:ect)?\s+(.*)$/) {
 		$self->_run_view_project($1);
 	}
